@@ -1,16 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
+/**
+ * В коде смысл Entity немного нарушен, они выглядят скорей как Dto, но допустим мы работаем без ORM
+ */
 class Item
 {
-    protected $id;
-    protected $billId;
-    protected $productId;
-    protected $price;
-    protected $quantity;
+    private int $id;
+    private int $billId;
+    private int $productId;
+    private int $price;
+    private int $quantity;
 
-    public function __construct($billId, $productId, $price, $quantity)
+    public function __construct(int $billId, int $productId, int $price, int $quantity)
     {
         $this->billId = $billId;
         $this->productId = $productId;
@@ -18,17 +23,19 @@ class Item
         $this->quantity = $quantity;
     }
 
-    public function setId(int $id)
-    {
-        $this->id = $id;
-    }
-
-    public function getId()
+    public function getId(): int
     {
         return $this->id;
     }
 
-    public function getBillId()
+    public function setId(int $id): self
+    {
+        $this->id = $id;
+
+        return $this;
+    }
+
+    public function getBillId(): int
     {
         return $this->billId;
     }
@@ -36,6 +43,8 @@ class Item
     public function setBillId(int $billId)
     {
         $this->billId = $billId;
+
+        return $this;
     }
 
     public function getProductId(): int
@@ -46,26 +55,31 @@ class Item
     public function setProductId(int $productId): self
     {
         $this->productId = $productId;
+
         return $this;
     }
 
-    public function getPrice()
+    public function getPrice(): int
     {
         return $this->price;
     }
 
-    public function setPrice(int $price)
+    public function setPrice(int $price): self
     {
         $this->price = $price;
+
+        return $this;
     }
 
-    public function getQuantity()
+    public function getQuantity(): int
     {
         return $this->quantity;
     }
 
-    public function setQuantity(int $quantity)
+    public function setQuantity(int $quantity): self
     {
         $this->quantity = $quantity;
+
+        return $this;
     }
 }

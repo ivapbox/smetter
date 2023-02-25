@@ -2,71 +2,93 @@
 
 namespace App\Controller;
 
-use App\Factory\BillFactory;
-use App\Repository\BillRepository;
+use App\Dto\Request\BillRequestDto;
+use App\Exception\BillNotPaidException;
+use App\Exception\BillUndefiledTypeException;
 use App\Service\BillGenerator;
 use App\Service\BillMicroserviceClient;
+use App\Service\BillService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use \Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
-use const App\Entity\BILL_TYPE_OTHER;
-use const App\Entity\BILL_TYPE_Partner;
+use Throwable;
 
 class BillController
 {
-    protected $bill_factory;
-    protected $bill_repository;
-
-    public function __construct(BillFactory $bill_factory, BillRepository $bill_repository)
-    {
-        $this->bill_factory = $bill_factory;
-        $this->bill_repository = $bill_repository;
-    }
-
     /**
+     * Полагаю - тело запроса выглядит так:
+     *
+     * {
+     *       "type": 1,
+     *       "items": [
+     *           {
+     *               "productId": 1,
+     *               "price": 100,
+     *               "quantity": 1
+     *           },
+     *           {
+     *               "productId": 2,
+     *               "price": 200,
+     *               "quantity": 2
+     *           },
+     *           {
+     *               "productId": 3,
+     *               "price": 300,
+     *               "quantity": 3
+     *           }
+     *       ]
+     * }
+     *
      * @Route("/create", methods={"POST"})
      */
-    public function create(Request $request)
+    public function create(BillRequestDto $request, BillService $billService)
     {
-        $billData = json_decode($request->getContent(), true);
-        $billId = $this->bill_factory->generateBillId();
-        $bill = $this->bill_factory->createBill($billData, $billId);
-        if ($bill->billType === BILL_TYPE_Partner) {
-            $this->bill_repository->save($bill);
-            return new RedirectResponse($bill->getPayUrl());
-        }
-        if ($bill->billType === BILL_TYPE_OTHER) {
-            $bill->setBillGenerator(new BillGenerator());
-            $this->bill_repository->save($bill);
-            return new RedirectResponse($bill->getBillUrl());
+        try {
+            $bill = $billService->create($request);
+            return new RedirectResponse($billService->getBillUrl($bill));
+        } catch (BillUndefiledTypeException) {
+            return new JsonResponse([
+                "status" => "error",
+                "message" => "Bad Request"
+            ]);
+        } catch (Throwable $exception) {
+            return new JsonResponse([
+                "status" => "error",
+                "message" => "Что-то пошло не так"
+            ]);
         }
     }
 
     /**
-     * @Route("/finish/{billId}", methods={"GET"})
+     * @Route("/finish/{billId}", methods={"POST"})
      */
-    public function finish($billId)
+    public function finish(int $billId, BillService $billService)
     {
-        $bill = $this->bill_repository->get($billId);
-        if ($bill->billType == BILL_TYPE_OTHER) {
-            $bill->setBillClient(new BillMicroserviceClient());
-        }
-        if ($bill->isPaid()) {
-            return new Response("Thank you");
-        } else {
-            return new Response("You haven't paid bill yet");
+        try {
+            $billService->finish($billId);
+            return new JsonResponse([
+                "status" => "success",
+            ]);
+        } catch (BillNotPaidException $exception) {
+            return new JsonResponse([
+                "status" => "error",
+                "message" => "You haven't paid bill yet"
+            ]);
+        } catch (Throwable $exception) {
+            return new JsonResponse([
+                "status" => "error",
+                "message" => "Что-то пошло не так"
+            ]);
         }
     }
 
     /**
      * @Route("/last", methods={"GET"})
      */
-    public function last(Request $request)
+    public function last(Request $request, BillService $billService)
     {
         $limit = $request->get("limit");
-        $bills = $this->bill_repository->last($limit);
-        return new JsonResponse($bills);
+        return new JsonResponse($billService->getLast($limit));
     }
 }

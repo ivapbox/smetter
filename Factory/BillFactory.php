@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Factory;
 
+use App\Dto\Request\BillRequestDto;
+use App\Dto\Request\ItemRequestDto;
 use App\Entity\Item;
 use App\Entity\Bill;
 
@@ -19,26 +23,37 @@ class BillFactory
         $this->pdo = $pdo;
     }
 
-    public function generateBillId()
+    /**
+     * Вообще при использовании ORM не нужны никакие генераторы, id сам сгенерится
+     */
+    private function generateBillId(): int
     {
-        $sql = "SELECT id FROM bills ORDER BY createdAt DESC LIMIT 1";
+        $sql = "SELECT id FROM bills ORDER BY created_at DESC LIMIT 1";
         $result = $this->pdo->query($sql)->fetch();
-        return (new \DateTime())->format("Y-m") . "-" . $result['id'] + 1;
+        return $result['id'] + 1;
     }
 
-    public function createBill($data, $id)
+    public function createBill(BillRequestDto $data): Bill
     {
-        $bill = new Bill($id);
-        foreach ($data as $key => $value) {
-            if ($key == 'items') {
-                foreach ($value as $itemValue) {
-                    $bill->items[] = new Item($id, $itemValue['productId'],
-                        $itemValue['price'], $itemValue['quantity']);
-                }
-                continue;
-            }
-            $bill->{$key} = $value;
+        $billId = $this->generateBillId();
+
+        $requestItems = $data->getItems();
+
+        $sum = 0;
+        foreach ($requestItems as $item) {
+            $sum += $item->getPrice();
         }
-        return $bill;
+
+        return (new Bill($billId))
+            ->setSum($sum)
+            ->setItems(array_map(function (ItemRequestDto $itemRequestDto) use ($billId) {
+                return new Item(
+                    $billId,
+                    $itemRequestDto->getProductId(),
+                    $itemRequestDto->getPrice(),
+                    $itemRequestDto->getQuantity(),
+                );
+            }, $requestItems))
+            ->setType($data->getType());
     }
 }
