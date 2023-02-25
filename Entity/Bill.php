@@ -1,55 +1,83 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
-use App\Service\BillGenerator;
-use App\Service\BillMicroserviceClient;
-
-const BILL_TYPE_Partner = 1;
-const BILL_TYPE_OTHER = 2;
-
+/**
+ * В коде смысл Entity немного нарушен, они выглядят скорей как Dto, но допустим мы работаем без ORM
+ */
 class Bill
 {
-    public $id;
-    public $sum;
-    public $items = [];
-    public $billType;
-    public $isPaid;
-    public $billGenerator;
-    public $billMicroserviceClient;
+    private int $id;
 
-    public function __construct($id)
+    private int $sum;
+
+    /** @var Item[]  */
+    private array $items = [];
+
+    private int $type;
+
+    private bool $isPaid;
+
+    public function __construct(int $id)
     {
         $this->id = $id;
     }
 
-    public function getPayUrl()
+    public function getId(): int
     {
-        return "http://pay" . $this->id;
+        return $this->id;
     }
 
-    public function setBillGenerator($billGenerator)
+    public function getSum(): int
     {
-        $this->billGenerator = $billGenerator;
+        return $this->sum;
     }
 
-    public function getBillUrl()
+    public function setSum(int $sum): self
     {
-        return $this->billGenerator->generate($this);
+        $this->sum = $sum;
+
+        return $this;
     }
 
-    public function setBillClient(BillMicroserviceClient $cl)
+    public function getItems(): array
     {
-        $this->billMicroserviceClient = $cl;
+        return $this->items;
     }
 
-    public function isPaid()
+    /**
+     * @param Item[] $items
+     */
+    public function setItems(array $items): self
     {
-        if ($this->billType == BILL_TYPE_Partner) {
-            return $this->isPaid;
-        }
-        if ($this->billType == BILL_TYPE_OTHER) {
-            return $this->billMicroserviceClient->IsPaid($this->id);
-        }
+        $this->items = $items;
+
+        return $this;
+    }
+
+    public function getType(): int
+    {
+        return $this->type;
+    }
+
+    public function setType(int $type): self
+    {
+        $this->type = $type;
+
+        return $this;
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->isPaid;
+        // закомментировал, т.к. здесь не должно быть подобных проверок с подключением сторонних микросервисов, тем более без обертки в try-catch
+//        if ($this->type === BillType::PARTNER) {
+//            return $this->isPaid;
+//        }
+//        if ($this->type === BillType::OTHER) {
+//            return $this->billMicroserviceClient->isPaid($this->getId());
+//        }
     }
 }
